@@ -111,7 +111,7 @@ export const exportPNG = async (
     svgContent.replace(/(<svg[^>]*>)/i, `$1${styleTag}`)
   );
 
-  console.log(injectedSvg);
+  // console.log(injectedSvg);
 
   // Parse SVG to get width/height
   const parser = new DOMParser();
@@ -219,9 +219,9 @@ export const exportJSON = (diagramCode: string, filename: string = 'diagram.json
 
 function convertForeignObjectLabelsToText(svg: string): string {
   return svg.replace(
-    /<g([^>]*)transform="translate\(([^,]+),\s*([^\)]+)\)"[^>]*>[\s\S]*?<foreignObject[^>]*>[\s\S]*?<span[^>]*class="nodeLabel"[^>]*>(.*?)<\/span>[\s\S]*?<\/foreignObject>[\s\S]*?<\/g>/g,
-    (match, gAttrs, x, y, label) => {
-      return `<g${gAttrs} transform="translate(${x},${y})"><text x="0" y="0" font-family="Arial, sans-serif" font-size="16" fill="#222">${label}</text></g>`;
+    /<g([^>]*)transform="translate\(([^,]+),\s*([^\)]+)\)"([^>]*)>([\s\S]*?)<foreignObject[^>]*>[\s\S]*?<span[^>]*class="nodeLabel"[^>]*>(.*?)<\/span>[\s\S]*?<\/foreignObject>([\s\S]*?)<\/g>/g,
+    (match, gAttrs, x, y, gExtra, before, label, after) => {
+      return `<g${gAttrs}transform="translate(${x},${y})"${gExtra}>${before}<text x="0" y="0" font-family="Arial, sans-serif" font-size="16" fill="#222">${label}</text>${after}</g>`;
     }
   );
 }
