@@ -1,4 +1,3 @@
-
 // src/lib/mermaid-utils.ts
 import mermaid from 'mermaid';
 import { Canvg } from 'canvg';
@@ -41,9 +40,35 @@ export const renderMermaidDiagram = async (elementId: string, rawCode: string): 
   try {
     const internalSvgId = `mermaid-svg-${elementId}-${Date.now()}`;
     const { svg, bindFunctions } = await mermaid.render(internalSvgId, code);
-    container.innerHTML = svg;
+
+    // Create a wrapper div for the SVG
+    const wrapper = container.querySelector('.diagram-wrapper') || container;
+    wrapper.innerHTML = svg;
+
+    // Get the SVG element
+    const svgElement = wrapper.querySelector('svg') as SVGSVGElement;
+    if (svgElement) {
+      // Make SVG responsive
+      svgElement.style.width = '100%';
+      svgElement.style.height = '100%';
+      svgElement.style.maxHeight = '100%';
+      svgElement.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
+      // Calculate and apply scaling
+      const containerRect = wrapper.getBoundingClientRect();
+      const svgRect = svgElement.getBoundingClientRect();
+      const scale = Math.min(
+        containerRect.width / svgRect.width,
+        containerRect.height / svgRect.height
+      );
+
+      if (scale < 1) {
+        (wrapper as HTMLElement).style.transform = `scale(${scale})`;
+      }
+    }
+
     if (bindFunctions) {
-      bindFunctions(container);
+      bindFunctions(wrapper);
     }
     return svg;
   } catch (error) {
@@ -79,16 +104,19 @@ export const exportPNG = async (
   filename: string = 'diagram.png',
   previewElementId?: string
 ) => {
-  // Inject font styles into all text elements to ensure browser/canvg renders text
-  const injectedSvg = svgContent.replace(
-    /<text([^>]*)>/g,
-    '<text$1 font-family="Arial, sans-serif" font-size="16px" fill="#222">'
+  const styleTag = `<style>
+  text { font-family: Arial, sans-serif; font-size: 16px; fill: #222; }
+</style>`;
+  const injectedSvg = convertForeignObjectLabelsToText(
+    svgContent.replace(/(<svg[^>]*>)/i, `$1${styleTag}`)
   );
+
+  console.log(injectedSvg);
 
   // Parse SVG to get width/height
   const parser = new DOMParser();
   const svgDoc = parser.parseFromString(injectedSvg, 'image/svg+xml');
-  const svgEl = svgDoc.documentElement as SVGSVGElement;
+  const svgEl = svgDoc.documentElement as unknown as SVGSVGElement;
 
   // Robust dimension calculation
   let width = 800;
@@ -188,3 +216,12 @@ export const exportJSON = (diagramCode: string, filename: string = 'diagram.json
   }
   URL.revokeObjectURL(url);
 };
+
+function convertForeignObjectLabelsToText(svg: string): string {
+  return svg.replace(
+    /<g([^>]*)transform="translate\(([^,]+),\s*([^\)]+)\)"[^>]*>[\s\S]*?<foreignObject[^>]*>[\s\S]*?<span[^>]*class="nodeLabel"[^>]*>(.*?)<\/span>[\s\S]*?<\/foreignObject>[\s\S]*?<\/g>/g,
+    (match, gAttrs, x, y, label) => {
+      return `<g${gAttrs} transform="translate(${x},${y})"><text x="0" y="0" font-family="Arial, sans-serif" font-size="16" fill="#222">${label}</text></g>`;
+    }
+  );
+}
