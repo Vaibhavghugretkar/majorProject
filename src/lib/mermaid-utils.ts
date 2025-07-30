@@ -1,6 +1,7 @@
 
 // src/lib/mermaid-utils.ts
 import mermaid from 'mermaid';
+import { Canvg } from 'canvg';
 
 // Call initializeMermaid once when the module is loaded, ensuring it runs on client.
 if (typeof window !== 'undefined') {
