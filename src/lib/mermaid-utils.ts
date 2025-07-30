@@ -73,70 +73,104 @@ export const exportSVG = (svgContent: string, filename: string = 'diagram.svg') 
   URL.revokeObjectURL(url);
 };
 
-export const exportPNG = (svgContent: string, filename: string = 'diagram.png') => {
+export const exportPNG = async (
+  svgContent: string,
+  filename: string = 'diagram.png',
+  previewElementId?: string
+) => {
+  // Inject font styles into all text elements to ensure browser/canvg renders text
+  const injectedSvg = svgContent.replace(
+    /<text([^>]*)>/g,
+    '<text$1 font-family="Arial, sans-serif" font-size="16px" fill="#222">'
+  );
+
+  // Parse SVG to get width/height
+  const parser = new DOMParser();
+  const svgDoc = parser.parseFromString(injectedSvg, 'image/svg+xml');
+  const svgEl = svgDoc.documentElement as SVGSVGElement;
+
+  // Robust dimension calculation
+  let width = 800;
+  let height = 600;
+  const viewBox = svgEl.getAttribute('viewBox');
+  if (viewBox) {
+    const vb = viewBox.split(' ').map(Number);
+    if (vb.length === 4) {
+      width = vb[2];
+      height = vb[3];
+    }
+  } else {
+    width = parseInt(svgEl.getAttribute('width') || '800', 10);
+    height = parseInt(svgEl.getAttribute('height') || '600', 10);
+  }
+
+  const padding = 20;
+  const scale = 3; // For high-DPI exports
   const canvas = document.createElement('canvas');
+  canvas.width = (width + padding * 2) * scale;
+  canvas.height = (height + padding * 2) * scale;
+
   const ctx = canvas.getContext('2d');
   if (!ctx) {
     alert("Could not create canvas context for PNG export.");
     return;
   }
 
-  const img = new Image();
-  img.crossOrigin = "anonymous"; // Attempt to handle potential CORS issues with SVG content
+  // Fill background white
+  ctx.fillStyle = 'white';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const svgBlob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
-  const url = URL.createObjectURL(svgBlob);
+  // Scale context for high DPI
+  ctx.setTransform(scale, 0, 0, scale, padding * scale, padding * scale);
 
-  img.onload = () => {
-    const padding = 20;
-    const naturalWidth = img.naturalWidth;
-    const naturalHeight = img.naturalHeight;
+  // Use canvg to render SVG onto canvas
+  try {
+    const v = await Canvg.from(ctx, injectedSvg, {
+      ignoreAnimation: true,
+      ignoreMouse: true,
+      ignoreClear: true,
+    });
+    await v.render();
+  } catch (e) {
+    console.error('Canvg render error:', e);
+    alert("Failed to render SVG for PNG export. Please try using SVG export instead.");
+    return;
+  }
 
-    if (naturalWidth === 0 || naturalHeight === 0) {
-      console.error("SVG image has zero intrinsic dimensions, cannot export PNG.");
-      URL.revokeObjectURL(url);
-      alert("Diagram has no content or dimensions, cannot export as PNG.");
-      return;
-    }
-
-    canvas.width = naturalWidth + padding * 2;
-    canvas.height = naturalHeight + padding * 2;
-
-    // Set canvas background to match the application's background
-    try {
-        ctx.fillStyle = window.getComputedStyle(document.body).backgroundColor || 'white';
-    } catch (e) {
-        ctx.fillStyle = 'white'; // Fallback if computed style fails (e.g. in tests)
-    }
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Draw the SVG image onto the canvas
-    ctx.drawImage(img, padding, padding, naturalWidth, naturalHeight);
-    URL.revokeObjectURL(url); // Clean up the object URL once drawn
-
-    try {
+  // Optionally preview the PNG in the DOM
+  if (previewElementId) {
+    const preview = document.getElementById(previewElementId);
+    if (preview) {
+      preview.innerHTML = '';
       const pngUrl = canvas.toDataURL('image/png');
+      const pngImg = document.createElement('img');
+      pngImg.src = pngUrl;
+      pngImg.alt = 'PNG Preview';
+      pngImg.style.maxWidth = '100%';
+      preview.appendChild(pngImg);
+    }
+  }
+
+  // Download PNG
+  try {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        alert("Failed to create PNG blob.");
+        return;
+      }
+      const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = pngUrl;
+      link.href = url;
       link.download = filename;
       document.body.appendChild(link);
       link.click();
-      if (document.body.contains(link)) {
-        document.body.removeChild(link);
-      }
-    } catch (e) {
-      console.error("Error calling toDataURL (canvas might be tainted):", e);
-      alert("Failed to export PNG. The diagram may contain external content that cannot be included. Please try generating the diagram without external images.");
-    }
-  };
-
-  img.onerror = (e) => {
-    console.error("Error loading SVG into Image object for PNG export:", e);
-    URL.revokeObjectURL(url);
-    alert("Failed to load diagram for PNG export. The SVG data might be malformed or an error occurred during loading.");
-  };
-
-  img.src = url;
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 'image/png');
+  } catch (e) {
+    console.error("Error exporting PNG:", e);
+    alert("Failed to export PNG. Please try again or use SVG export instead.");
+  }
 };
 
 export const exportJSON = (diagramCode: string, filename: string = 'diagram.json') => {
