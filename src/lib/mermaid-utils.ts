@@ -219,11 +219,12 @@ export const exportJSON = (diagramCode: string, filename: string = 'diagram.json
 
 function convertForeignObjectLabelsToText(svg: string): string {
   return svg.replace(
-    /<foreignObject[^>]*width="([^"]+)" height="([^"]+)"[^>]*>[\s\S]*?<span[^>]*class="nodeLabel"[^>]*>(.*?)<\/span>[\s\S]*?<\/foreignObject>/g,
-    (match, width, height, label) => {
+    /(<g[^>]*transform="translate\(([^,]+),\s*([^\)]+)\)"[^>]*>[\s\S]*?)<foreignObject[^>]*width="([^"]+)" height="([^"]+)"[^>]*>[\s\S]*?<span[^>]*class="nodeLabel"[^>]*>(.*?)<\/span>[\s\S]*?<\/foreignObject>/g,
+    (match, gOpen, x, y, width, height, label) => {
+      // Center text in the box relative to the group
       const textX = Number(width) / 2;
       const textY = Number(height) / 2 + 6;
-      return `<text x="${textX}" y="${textY}" font-family="Arial, sans-serif" font-size="16" fill="#222" text-anchor="middle" dominant-baseline="middle">${label}</text>`;
+      return `${gOpen}<text x="${textX}" y="${textY}" font-family="Arial, sans-serif" font-size="16" fill="#222" text-anchor="middle" dominant-baseline="middle">${label}</text>`;
     }
   );
 }
