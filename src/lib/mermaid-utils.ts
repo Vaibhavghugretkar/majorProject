@@ -219,9 +219,11 @@ export const exportJSON = (diagramCode: string, filename: string = 'diagram.json
 
 function convertForeignObjectLabelsToText(svg: string): string {
   return svg.replace(
-    /<g([^>]*)transform="translate\(([^,]+),\s*([^\)]+)\)"([^>]*)>([\s\S]*?)<foreignObject[^>]*>[\s\S]*?<span[^>]*class="nodeLabel"[^>]*>(.*?)<\/span>[\s\S]*?<\/foreignObject>([\s\S]*?)<\/g>/g,
-    (match, gAttrs, x, y, gExtra, before, label, after) => {
-      return `<g${gAttrs}transform="translate(${x},${y})"${gExtra}>${before}<text x="0" y="0" font-family="Arial, sans-serif" font-size="16" fill="#222">${label}</text>${after}</g>`;
+    /<foreignObject[^>]*width="([^"]+)" height="([^"]+)"[^>]*>[\s\S]*?<span[^>]*class="nodeLabel"[^>]*>(.*?)<\/span>[\s\S]*?<\/foreignObject>/g,
+    (match, width, height, label) => {
+      const textX = Number(width) / 2;
+      const textY = Number(height) / 2 + 6;
+      return `<text x="${textX}" y="${textY}" font-family="Arial, sans-serif" font-size="16" fill="#222" text-anchor="middle" dominant-baseline="middle">${label}</text>`;
     }
   );
 }
