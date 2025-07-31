@@ -219,12 +219,29 @@ export const exportJSON = (diagramCode: string, filename: string = 'diagram.json
 
 function convertForeignObjectLabelsToText(svg: string): string {
   return svg.replace(
-    /(<g[^>]*transform="translate\(([^,]+),\s*([^\)]+)\)"[^>]*>[\s\S]*?)<foreignObject[^>]*width="([^"]+)" height="([^"]+)"[^>]*>[\s\S]*?<span[^>]*class="nodeLabel"[^>]*>(.*?)<\/span>[\s\S]*?<\/foreignObject>/g,
-    (match, gOpen, x, y, width, height, label) => {
-      // Center text in the box relative to the group
-      const textX = Number(width) / 2;
-      const textY = Number(height) / 2 + 6;
-      return `${gOpen}<text x="${textX}" y="${textY}" font-family="Arial, sans-serif" font-size="16" fill="#222" text-anchor="middle" dominant-baseline="middle">${label}</text>`;
+    /(<g[^>]*transform="translate\(([^,]+),\s*([^\)]+)\)"[^>]*>)([\s\S]*?)(<rect([^>]*)\/?>)([\s\S]*?)<foreignObject[^>]*width="([^"]+)" height="([^"]+)"[^>]*>[\s\S]*?<span[^>]*class="nodeLabel"[^>]*>(.*?)<\/span>[\s\S]*?<\/foreignObject>([\s\S]*?)<\/g>/g,
+    (
+      match,
+      gOpen, x, y,
+      beforeRect, rectTag, rectAttrs,
+      afterRect, foWidth, foHeight, label, afterFO
+    ) => {
+      // Extract x, y, width, height from rect
+      const xMatch = rectTag.match(/x="([^"]+)"/);
+      const yMatch = rectTag.match(/y="([^"]+)"/);
+      const widthMatch = rectTag.match(/width="([^"]+)"/);
+      const heightMatch = rectTag.match(/height="([^"]+)"/);
+
+      const rectX = xMatch ? Number(xMatch[1]) : 0;
+      const rectY = yMatch ? Number(yMatch[1]) : 0;
+      const rectWidth = widthMatch ? Number(widthMatch[1]) : Number(foWidth);
+      const rectHeight = heightMatch ? Number(heightMatch[1]) : Number(foHeight);
+
+      // Center text in the box
+      const textX = rectX + rectWidth / 2;
+      const textY = rectY + rectHeight / 2;
+
+      return `${gOpen}${beforeRect}${rectTag}${afterRect}<text x="${textX}" y="${textY}" font-family="Arial, sans-serif" font-size="16" fill="#222" text-anchor="middle" dominant-baseline="middle">${label}</text>${afterFO}</g>`;
     }
   );
 }

@@ -2,12 +2,18 @@
 "use client";
 
 import type { FC } from 'react';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { renderMermaidDiagram } from '@/lib/mermaid-utils';
-import { Loader2, Image as ImageIcon, Maximize, Code2Icon } from 'lucide-react';
+import { Loader2, Image as ImageIcon, Maximize, Code2Icon, Menu } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface DiagramViewProps {
   diagramCode: string;
@@ -16,6 +22,7 @@ interface DiagramViewProps {
   isCodeVisible: boolean;
   onToggleCodeVisibility: () => void;
   className?: string;
+  hideHeader?: boolean;
 }
 
 const DiagramView: FC<DiagramViewProps> = ({ 
@@ -24,25 +31,42 @@ const DiagramView: FC<DiagramViewProps> = ({
   onViewFullScreen, 
   isCodeVisible, 
   onToggleCodeVisibility, 
-  className = "" 
+  className = "",
+  hideHeader = false 
 }) => {
-  const diagramContainerId = 'mermaid-diagram-container'; // Main view container ID
+  const diagramContainerId = 'mermaid-diagram-container';
   const diagramContainerRef = useRef<HTMLDivElement>(null);
   const prevCodeRef = useRef<string | undefined>();
   const prevIsLoadingRef = useRef<boolean | undefined>();
+  const [isCompact, setIsCompact] = useState(false);
+  const headerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  // Monitor header width to determine if we should show compact view
+  useEffect(() => {
+    if (!headerRef.current) return;
+    
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) {
+        // If header width is less than 400px, show compact menu
+        setIsCompact(entry.contentRect.width < 400);
+      }
+    });
+
+    observer.observe(headerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const containerElement = diagramContainerRef.current;
 
     if (!isLoading) {
       if (diagramCode && containerElement) {
-        // Render if code changed OR if loading state just finished and there's code
         if (diagramCode !== prevCodeRef.current || (prevIsLoadingRef.current === true && !isLoading)) {
           renderMermaidDiagram(diagramContainerId, diagramCode);
         }
       } else if (!diagramCode && containerElement) {
-        // Clear the container if there's no code
         renderMermaidDiagram(diagramContainerId, "");
       }
     }
@@ -51,7 +75,6 @@ const DiagramView: FC<DiagramViewProps> = ({
     prevIsLoadingRef.current = isLoading;
 
   }, [diagramCode, isLoading]);
-
 
   const handleViewFullScreen = () => {
     if (!diagramCode && !isLoading) {
@@ -69,36 +92,73 @@ const DiagramView: FC<DiagramViewProps> = ({
 
   return (
     <Card className={`flex flex-col shadow-lg h-full ${className}`}>
-      <CardHeader className="py-3 px-4 border-b flex flex-row items-center justify-between">
-        <CardTitle className="text-lg flex items-center text-primary">
-          <ImageIcon className="mr-2 h-5 w-5" />
-          Diagram Preview
-        </CardTitle>
-        <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onToggleCodeVisibility}
-              disabled={isLoading}
-              className="ml-auto px-3 border-primary text-primary hover:bg-primary/10 hover:text-primary"
-              aria-label="Toggle code editor visibility"
-            >
-              <Code2Icon className="mr-2 h-4 w-4" />
-              {isCodeVisible ? 'Hide Code' : 'Show Code'}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleViewFullScreen}
-              disabled={isLoading || !diagramCode}
-              className="ml-auto px-3 border-primary text-primary hover:bg-primary/10 hover:text-primary"
-              aria-label="View diagram fullscreen"
-            >
-              <Maximize className="mr-2 h-4 w-4" />
-              Fullscreen
-            </Button>
-        </div>
-      </CardHeader>
+      {!hideHeader && (
+        <CardHeader ref={headerRef} className="py-3 px-4 border-b flex flex-row items-center justify-between min-h-[60px]">
+          <CardTitle className="text-lg flex items-center text-primary">
+            <ImageIcon className="mr-2 h-5 w-5 flex-shrink-0" />
+            <span className={isCompact ? "hidden" : ""}>Diagram Preview</span>
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            {!isCompact ? (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onToggleCodeVisibility}
+                  disabled={isLoading}
+                  className="px-3 border-primary text-primary hover:bg-primary/10 hover:text-primary"
+                  aria-label="Toggle code editor visibility"
+                >
+                  <Code2Icon className="mr-2 h-4 w-4" />
+                  {isCodeVisible ? 'Hide Code' : 'Show Code'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleViewFullScreen}
+                  disabled={isLoading || !diagramCode}
+                  className="px-3 border-primary text-primary hover:bg-primary/10 hover:text-primary"
+                  aria-label="View diagram fullscreen"
+                >
+                  <Maximize className="mr-2 h-4 w-4" />
+                  Fullscreen
+                </Button>
+              </>
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="px-3 border-primary text-primary hover:bg-primary/10 hover:text-primary"
+                    aria-label="Diagram options"
+                  >
+                    <Menu className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem
+                    onClick={onToggleCodeVisibility}
+                    disabled={isLoading}
+                    className="cursor-pointer"
+                  >
+                    <Code2Icon className="mr-2 h-4 w-4" />
+                    {isCodeVisible ? 'Hide Code' : 'Show Code'}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={handleViewFullScreen}
+                    disabled={isLoading || !diagramCode}
+                    className="cursor-pointer"
+                  >
+                    <Maximize className="mr-2 h-4 w-4" />
+                    Fullscreen
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+        </CardHeader>
+      )}
       <CardContent className="p-0 flex-grow flex flex-col relative overflow-auto">
         {isLoading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/80 backdrop-blur-sm z-10">
@@ -115,7 +175,6 @@ const DiagramView: FC<DiagramViewProps> = ({
           </div>
         )}
         
-        {/* This div is where Mermaid renders the diagram for the main panel view */}
         <div
           ref={diagramContainerRef}
           id={diagramContainerId}

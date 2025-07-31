@@ -57,6 +57,7 @@ const PromptForm: FC<PromptFormProps> = ({ onSubmit, isLoading, documentFile, se
           rows={3}
           className="resize-none bg-input focus-visible:ring-accent pr-24"
           disabled={isLoading}
+          name='diagramCode'
           aria-label="Chat message input"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
