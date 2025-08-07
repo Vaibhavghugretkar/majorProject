@@ -59,24 +59,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, pass: string) => {
     setIsLoading(true);
-    // Any email/password is valid in this mock.
-    const user: User = {
-      uid: 'mock-user-123',
-      email: email,
-      displayName: email.split('@')[0],
-      photoURL: null,
-    };
-    isAuthenticated = true;
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('mockUserEmail', email); // Persist email across refresh
+    // Hardcoded credentials for this mock
+    const hardcodedEmail = 'test@example.com';
+    const hardcodedPass = 'password123';
+
+    // Check if credentials are correct
+    if (email === hardcodedEmail && pass === hardcodedPass) {
+      const user: User = {
+        uid: 'mock-user-123',
+        email: email,
+        displayName: email.split('@')[0],
+        photoURL: null,
+      };
+      isAuthenticated = true;
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('mockUserEmail', email); // Persist email across refresh
+      }
+      setCurrentUser(user);
+      setIsLoading(false);
+      router.replace('/diagram');
+    } else {
+      setIsLoading(false);
+      // Throw an error if credentials are wrong.
+      // The LoginForm component will need to catch this error and display it.
+      throw new Error('Wrong email or password');
     }
-    setCurrentUser(user);
-    setIsLoading(false);
-    router.replace('/diagram');
   };
 
   const signup = async (email: string, pass: string) => {
     // Signup and login have the same effect in this mock implementation.
+    // To handle the hardcoded check, we'll just call login directly.
     await login(email, pass);
   };
   

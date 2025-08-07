@@ -1,7 +1,7 @@
-// src/components/layout/app-header.tsx
 "use client";
 
 import type { FC } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
@@ -16,13 +16,15 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { LogOut, UserCircle, Settings, LifeBuoy } from 'lucide-react';
-import FigmaticLogo from '@/components/logo'; // Import the new logo
+import FigmaticLogo from '@/components/logo';
 
 interface AppHeaderProps {}
 
 const AppHeader: FC<AppHeaderProps> = () => {
   const { currentUser, logout } = useAuth();
   const router = useRouter();
+
+  const [avatarUrl, setAvatarUrl] = useState<string>('');
 
   const handleLogout = async () => {
     try {
@@ -32,7 +34,23 @@ const AppHeader: FC<AppHeaderProps> = () => {
       console.error("Logout failed", error);
     }
   };
-  
+
+  useEffect(() => {
+    const generateAvatar = async () => {
+      if (!currentUser) return;
+
+      if (currentUser.photoURL) {
+        setAvatarUrl(currentUser.photoURL);
+      } else {
+        const name = encodeURIComponent(currentUser.displayName || currentUser.email || 'User');
+        const generatedUrl = `https://ui-avatars.com/api/?name=${name}&background=98e1ce&color=fff`;
+        setAvatarUrl(generatedUrl);
+      }
+    };
+
+    generateAvatar();
+  }, [currentUser]);
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
       <div className="container flex h-16 max-w-screen-2xl items-center justify-between px-4 md:px-6">
@@ -40,16 +58,19 @@ const AppHeader: FC<AppHeaderProps> = () => {
           <FigmaticLogo />
           <span className="text-2xl font-bold text-primary tracking-tight group-hover:text-accent transition-colors duration-200">Figmatic</span>
         </Link>
-        
+
         <div className="flex items-center space-x-3 md:space-x-4">
           {currentUser && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                   <Avatar className="h-10 w-10 border-2 border-primary hover:border-accent transition-colors">
-                    <AvatarImage src={currentUser.photoURL || `https://placehold.co/100x100.png`} alt={currentUser.displayName || currentUser.email || 'User'} data-ai-hint="abstract geometric" />
+                    <AvatarImage
+                      src={avatarUrl || `https://placehold.co/100x100.png`}
+                      alt={currentUser.displayName || currentUser.email || 'User'}
+                    />
                     <AvatarFallback className="bg-primary text-primary-foreground">
-                      {currentUser.email ? currentUser.email.substring(0, 1).toUpperCase() : 'U'}
+                      {currentUser.email ? currentUser.email[0].toUpperCase() : 'U'}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -58,9 +79,7 @@ const AppHeader: FC<AppHeaderProps> = () => {
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none text-foreground">{currentUser.displayName || 'Welcome'}</p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {currentUser.email}
-                    </p>
+                    <p className="text-xs leading-none text-muted-foreground">{currentUser.email}</p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />

@@ -37,7 +37,7 @@ const LoginForm: FC = () => {
             // Navigation is handled by the auth context
         } catch (error: any) {
             // Since this is a mock, we shouldn't get errors, but this is good practice
-            toast({ variant: 'destructive', title: 'Action Failed', description: 'An unexpected error occurred.' });
+            toast({ variant: 'destructive', title: 'Action Failed', description: error.message || 'An error occurred. Please try again.' });
         } finally {
             setIsLoading(false);
         }
@@ -62,6 +62,7 @@ const LoginForm: FC = () => {
                             required
                             disabled={isLoading}
                             className="bg-input"
+                            autoComplete='email'
                         />
                     </div>
                     <div className="space-y-2">
@@ -75,6 +76,7 @@ const LoginForm: FC = () => {
                             required
                             disabled={isLoading}
                             className="bg-input"
+                            autoComplete='current-password'
                         />
                     </div>
                     <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={isLoading}>
