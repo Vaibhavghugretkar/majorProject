@@ -1,13 +1,11 @@
-// src/contexts/auth-context.tsx
 "use client";
 
-import type { ReactNode } from 'react';
-import React, { createContext, useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import type { ReactNode } from "react";
+import React, { createContext, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-// Replace Firebase User type with a simple interface for our mock user
 interface User {
-  uid: string;
+  _id: string;
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
@@ -21,14 +19,13 @@ interface AuthContextType {
   isLoading: boolean;
 }
 
-export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(
+  undefined
+);
 
 interface AuthProviderProps {
   children: ReactNode;
 }
-
-// Simple in-memory flag to simulate a logged-in user session
-let isAuthenticated = false;
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -36,75 +33,79 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const router = useRouter();
 
   useEffect(() => {
-    // Simulate checking auth state on initial load
-    setTimeout(() => {
-      // In a real app with localStorage, you'd check a token here.
-      // For this mock, we just start logged out unless a session was started.
-      if (typeof window !== 'undefined') {
-        const sessionEmail = sessionStorage.getItem('mockUserEmail');
-        if (sessionEmail) {
-          isAuthenticated = true;
-          setCurrentUser({
-            uid: 'mock-user-123',
-            email: sessionEmail,
-            displayName: sessionEmail.split('@')[0],
-            photoURL: null
-          });
-          router.replace('/diagram');
-        }
+    if (typeof window !== "undefined") {
+      const savedUser = localStorage.getItem("user");
+      if (savedUser) {
+        setCurrentUser(JSON.parse(savedUser));
+        router.replace("/diagram");
       }
-      setIsLoading(false);
-    }, 500);
+    }
+    setIsLoading(false);
   }, [router]);
+
+  const normalizeUser = (data: any): User => {
+    return {
+      _id: data._id || data.id|| data.uid, // ✅ handles both
+      email: data.email,
+      displayName: data.email ? data.email.split("@")[0] : null,
+      photoURL: null,
+    };
+  };
 
   const login = async (email: string, pass: string) => {
     setIsLoading(true);
-    // Hardcoded credentials for this mock
-    const hardcodedEmail = 'test@example.com';
-    const hardcodedPass = 'password123';
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password: pass }),
+    });
 
-    // Check if credentials are correct
-    if (email === hardcodedEmail && pass === hardcodedPass) {
-      const user: User = {
-        uid: 'mock-user-123',
-        email: email,
-        displayName: email.split('@')[0],
-        photoURL: null,
-      };
-      isAuthenticated = true;
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('mockUserEmail', email); // Persist email across refresh
-      }
-      setCurrentUser(user);
+    const data = await res.json();
+    if (!res.ok) {
       setIsLoading(false);
-      router.replace('/diagram');
-    } else {
-      setIsLoading(false);
-      // Throw an error if credentials are wrong.
-      // The LoginForm component will need to catch this error and display it.
-      throw new Error('Wrong email or password');
+      throw new Error(data.error || "Login failed");
     }
+
+    const user = normalizeUser(data);
+    localStorage.setItem("user", JSON.stringify(user));
+    setCurrentUser(user);
+    setIsLoading(false);
+    router.replace("/diagram");
   };
 
   const signup = async (email: string, pass: string) => {
-    // Signup and login have the same effect in this mock implementation.
-    // To handle the hardcoded check, we'll just call login directly.
-    await login(email, pass);
+    setIsLoading(true);
+    const res = await fetch("/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password: pass }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      setIsLoading(false);
+      throw new Error(data.error || "Signup failed");
+    }
+
+    const user = normalizeUser(data);
+    localStorage.setItem("user", JSON.stringify(user));
+    setCurrentUser(user);
+    setIsLoading(false);
+    router.replace("/diagram");
   };
-  
+
   const logout = async () => {
     setIsLoading(true);
-    isAuthenticated = false;
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('mockUserEmail');
-    }
+    localStorage.removeItem("user");
     setCurrentUser(null);
     setIsLoading(false);
-    router.replace('/login');
+    router.replace("/login");
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, login, signup, logout, isLoading }}>
+    <AuthContext.Provider
+      value={{ currentUser, login, signup, logout, isLoading }}
+    >
       {children}
     </AuthContext.Provider>
   );

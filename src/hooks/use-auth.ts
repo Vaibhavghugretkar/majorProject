@@ -7,7 +7,7 @@ import { AuthContext } from '@/contexts/auth-context';
 // This User type must match the one in AuthContext.
 // It's simplified here to avoid depending on Firebase.
 interface User {
-  uid: string;
+  _id: string;
   email: string | null;
   displayName: string | null;
   photoURL: string | null;

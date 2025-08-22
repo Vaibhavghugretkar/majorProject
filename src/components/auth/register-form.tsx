@@ -1,9 +1,7 @@
-// src/components/auth/login-form.tsx
 "use client";
 
 import type { FC } from "react";
 import React, { useState } from "react";
-import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,39 +12,54 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter
+  CardFooter,
 } from "@/components/ui/card";
-import { LogIn, Loader2 } from "lucide-react";
+import { UserPlus, Loader2, LogIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-const LoginForm: FC = () => {
+const RegisterForm: FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const { signup } = useAuth();
   const { toast } = useToast();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !password.trim()) {
+
+    if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
       toast({
         variant: "destructive",
         title: "Validation Error",
-        description: "Email and Password cannot be empty.",
+        description: "All fields are required.",
       });
       return;
     }
+
+    if (password !== confirmPassword) {
+      toast({
+        variant: "destructive",
+        title: "Password Mismatch",
+        description: "Password and confirm password must match.",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      await login(email, password);
-      // Navigation is handled in auth-context
+      await signup(email, password);
+      toast({
+        variant: "default",
+        title: "Registration Successful",
+        description: "You can now log in with your account.",
+      });
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Login Failed",
-        description:
-          error.message || "An error occurred. Please try again.",
+        title: "Registration Failed",
+        description: error.message || "Something went wrong. Please try again.",
       });
     } finally {
       setIsLoading(false);
@@ -57,14 +70,14 @@ const LoginForm: FC = () => {
     <Card className="w-full max-w-md shadow-xl">
       <CardHeader className="text-center">
         <CardTitle className="text-3xl font-bold text-primary">
-          Figmatic Login
+          Create an Account
         </CardTitle>
         <CardDescription>
-          Enter your credentials to access your diagrams.
+          Enter your details to start diagramming.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleRegister} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -90,7 +103,21 @@ const LoginForm: FC = () => {
               required
               disabled={isLoading}
               className="bg-input"
-              autoComplete="current-password"
+              autoComplete="new-password"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">Confirm Password</Label>
+            <Input
+              id="confirmPassword"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              disabled={isLoading}
+              className="bg-input"
+              autoComplete="new-password"
             />
           </div>
           <Button
@@ -105,26 +132,23 @@ const LoginForm: FC = () => {
               </>
             ) : (
               <>
-                <LogIn className="mr-2 h-5 w-5" /> Login
+                <UserPlus className="mr-2 h-5 w-5" /> Sign Up
               </>
             )}
           </Button>
         </form>
-
-        {/* Sign up link */}
-         <CardFooter className="flex justify-center p-4">
+      </CardContent>
+      <CardFooter className="flex justify-center p-4">
         <Button
           variant="link"
-          onClick={() => (window.location.href = "/register")}
+          onClick={() => (window.location.href = "/login")}
           className="text-sm"
         >
-          <LogIn className="mr-1 h-4 w-4" /> Don't have an account? SignUp
+          <LogIn className="mr-1 h-4 w-4" /> Already have an account? Login
         </Button>
       </CardFooter>
-       
-      </CardContent>
     </Card>
   );
 };
 
-export default LoginForm;
+export default RegisterForm;
