@@ -3,13 +3,14 @@ import Chat from "@/models/Chat";
 import { connectDB } from "@/lib/db";
 import mongoose from "mongoose";
 
-// ✅ GET /api/chats/[userId]
-export async function GET(req: Request, context: any) {
+// GET /api/chats/[userId]
+export async function GET(
+  req: Request,
+  context: { params: { userId: string } }
+) {
   await connectDB();
 
-  // await params before using
-  const { params } = await context;
-  const { userId } = await params;
+  const { userId } = await context.params; // <-- await here
 
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     return NextResponse.json({ error: "Invalid userId" }, { status: 400 });
@@ -21,12 +22,14 @@ export async function GET(req: Request, context: any) {
   return NextResponse.json(chat || { messages: [] });
 }
 
-// ✅ POST /api/chats/[userId]
-export async function POST(req: Request, context: any) {
+// POST /api/chats/[userId]
+export async function POST(
+  req: Request,
+  context: { params: { userId: string } }
+) {
   await connectDB();
 
-  const { params } = await context;
-  const { userId } = params;
+  const { userId } = await context.params; // ✅ correct usage
 
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     return NextResponse.json({ error: "Invalid userId" }, { status: 400 });
@@ -36,7 +39,10 @@ export async function POST(req: Request, context: any) {
   const body = await req.json();
 
   if (!body.messages || !Array.isArray(body.messages)) {
-    return NextResponse.json({ error: "Invalid messages format" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid messages format" },
+      { status: 400 }
+    );
   }
 
   try {

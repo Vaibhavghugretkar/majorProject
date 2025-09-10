@@ -18,12 +18,7 @@ import ExportControls from "@/components/diagram/export-controls";
 import { generateDiagram } from "@/ai/flows/diagram-generation";
 import type { DiagramGenerationInput } from "@/ai/flows/diagram-generation";
 import { useToast } from "@/hooks/use-toast";
-import {
-  renderMermaidDiagram,
-  exportSVG,
-  exportPNG,
-  exportJSON,
-} from "@/lib/mermaid-utils";
+import { renderMermaidDiagram } from "@/lib/mermaid-utils";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -55,6 +50,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar } from "@/components/ui/avatar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Canvg } from "canvg";
 
 interface Message {
   role: "user" | "assistant" | string;
@@ -203,12 +199,10 @@ const DiagramPage: NextPage = () => {
     }
   };
 
-  // ✅ Generate diagram when clicking a message code
   const handleGenerateSvgForMessage = async (msgIndex: number, code: string) => {
     try {
       const svg = await renderMermaidDiagram("mermaid-diagram-container-chat", code);
 
-      // Update messages with SVG
       setMessages((prevMessages) => {
         const updated = [...prevMessages];
         updated[msgIndex] = {
@@ -218,11 +212,9 @@ const DiagramPage: NextPage = () => {
         return updated;
       });
 
-      // Update main diagram panel
       setDiagramCode(code);
-      setCurrentSvgContent(svg);
+      setCurrentSvgContent(svg || "");
 
-      // Persist messages
       persistChat(messages.map((m, idx) => idx === msgIndex ? { ...m, diagramSvg: svg } : m));
     } catch (error) {
       console.error("Failed to generate SVG for message:", error);
@@ -320,9 +312,75 @@ const DiagramPage: NextPage = () => {
   };
 
   const handleOpenDiagramModal = () => diagramCode && setIsDiagramModalOpen(true);
-  const handleExportSVG = () => currentSvgContent && exportSVG(currentSvgContent);
-  const handleExportPNG = () => currentSvgContent && exportPNG(currentSvgContent);
-  const handleExportJSON = () => diagramCode && exportJSON(diagramCode);
+
+  // ✅ Updated download handlers
+const handleExportSVG = () => {
+  // Get the actual rendered SVG element in the DOM
+  const svgElement = document.querySelector("#mermaid-diagram-container svg") as SVGSVGElement;
+  if (!svgElement) {
+    console.error("SVG element not found");
+    return;
+  }
+
+  // Serialize the SVG element to a string
+  let svgContent = new XMLSerializer().serializeToString(svgElement);
+
+  // Ensure XML namespace exists
+  if (!svgContent.includes('xmlns="http://www.w3.org/2000/svg"')) {
+    svgContent = svgContent.replace(
+      "<svg",
+      '<svg xmlns="http://www.w3.org/2000/svg"'
+    );
+  }
+
+  // Create blob and trigger download
+  const blob = new Blob([svgContent], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "diagram.svg";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
+
+
+const handleExportPNG = async () => {
+  const svgElement = document.querySelector("#mermaid-diagram-container svg") as SVGSVGElement;
+  if (!svgElement) return;
+
+  const svgContent = new XMLSerializer().serializeToString(svgElement);
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  const v = await Canvg.fromString(ctx, svgContent);
+  await v.render();
+
+  canvas.toBlob((blob) => {
+    if (!blob) return;
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "diagram.png";
+    link.click();
+  });
+};
+
+
+  const handleExportJSON = () => {
+    if (!diagramCode) return;
+    const blob = new Blob([JSON.stringify({ diagramCode }, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "diagram.json";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   if (authLoading || !currentUser)
     return (
